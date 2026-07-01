@@ -11,7 +11,6 @@ import os
 
 app = Flask(__name__)
 
-
 load_dotenv()
 
 PINECONE_API_KEY=os.environ.get('PINECONE_API_KEY')
@@ -20,29 +19,38 @@ GOOGLE_API_KEY=os.environ.get('GOOGLE_API_KEY')
 os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
 os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
 
-embeddings = download_embeddings()
+# Lazy-loaded resources (initialized on first request)
+rag_chain = None
 
-index_name = "medical-chatbot"
-docSearch = PineconeVectorStore.from_existing_index(
-    index_name=index_name,
-    embedding=embeddings,
-)
-retriever = docSearch.as_retriever(search_type="similarity", search_kwargs={"k": 8})
+def get_rag_chain():
+    global rag_chain
+    if rag_chain is None:
+        print("Initializing ML models and connections...")
+        embeddings = download_embeddings()
 
-chatModel = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    google_api_key=os.getenv("GOOGLE_API_KEY"),
-    temperature=0.7,
-)
-prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", system_prompt),
-        ("human", "{input}"),
-    ]
-)
+        index_name = "medical-chatbot"
+        docSearch = PineconeVectorStore.from_existing_index(
+            index_name=index_name,
+            embedding=embeddings,
+        )
+        retriever = docSearch.as_retriever(search_type="similarity", search_kwargs={"k": 8})
 
-question_answer_chain = create_stuff_documents_chain(chatModel,prompt)
-rag_chain = create_retrieval_chain(retriever,question_answer_chain)
+        chatModel = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash",
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
+            temperature=0.7,
+        )
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", system_prompt),
+                ("human", "{input}"),
+            ]
+        )
+
+        question_answer_chain = create_stuff_documents_chain(chatModel, prompt)
+        rag_chain = create_retrieval_chain(retriever, question_answer_chain)
+        print("Initialization complete!")
+    return rag_chain
 
 @app.route("/")
 def index():
@@ -54,11 +62,12 @@ def chat():
     msg = request.form["msg"]
     input = msg
     print(input)
-    response = rag_chain.invoke({"input": msg})
+    chain = get_rag_chain()
+    response = chain.invoke({"input": msg})
     print("Response : ", response["answer"])
     return str(response["answer"])
 
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port = 8080)
+    app.run(debug=True, host="0.0.0.0", port = 8080)
