@@ -83,7 +83,12 @@
 						if (textStatus === "timeout") {
 							errMsg += "The request timed out. Please try again.";
 						} else {
-							errMsg += "Error: " + textStatus;
+							try {
+								var serverError = JSON.parse(jqXHR.responseText);
+								errMsg += serverError.error || textStatus;
+							} catch(e) {
+								errMsg += jqXHR.responseText || textStatus;
+							}
 						}
 						var errHtml = '<div class="d-flex justify-content-start mb-4"><div class="img_cont_msg"><img src="https://cdn-icons-png.flaticon.com/512/387/387569.png" class="rounded-circle user_img_msg"></div><div class="msg_cotainer" style="background-color: #ff4444;">' + errMsg + '<span class="msg_time">' + str_time + '</span></div></div>';
 						$("#messageFormeight").append($.parseHTML(errHtml));
