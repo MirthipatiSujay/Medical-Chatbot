@@ -1,8 +1,8 @@
 from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import FastEmbedEmbeddings
 from typing import List
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 def load_pdf_file(data):
     loader = DirectoryLoader(data, glob="*.pdf", loader_cls=PyPDFLoader)
@@ -34,6 +34,5 @@ def text_split(minimal_docs):
 
 
 def download_embeddings():
-    model_name = "sentence-transformers/all-MiniLM-L6-v2"
-    embeddings = HuggingFaceEmbeddings(model_name=model_name)
+    embeddings = FastEmbedEmbeddings()
     return embeddings
